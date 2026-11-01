@@ -1,6 +1,7 @@
 
 import { useEffect, useState } from "react";
 import "./App.css";
+import SeasonalFood from "./SeasonalFood";
 
 function App() {
   const [recipes, setRecipes] = useState([]);
@@ -107,6 +108,7 @@ const sortedRecipes = [...filteredRecipes].sort((a, b) => {
     <div className="container">
       <h1>🍳 오늘 뭐 먹지?</h1>
       <p>원하는 재료를 입력해 레시피를 찾아보세요.</p>
+      <SeasonalFood />
 
       <input
         className="search-input"

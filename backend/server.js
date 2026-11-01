@@ -69,6 +69,8 @@ app.get("/api/recipes", async (req, res) => {
   }
 });
 
+app.use("/api/seasonal", require("./seasonal"));
+
 app.listen(PORT, () => {
   console.log(`서버 실행 중: http://localhost:${PORT}`);
 });

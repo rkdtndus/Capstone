@@ -1,0 +1,42 @@
+.seasonal-section {
+  margin: 30px 0;
+  padding: 24px;
+  border: 1px solid #dce8dc;
+  border-radius: 12px;
+  background: #fff;
+  color: #222;
+  text-align: left;
+}
+.seasonal-section h2, .seasonal-section h3 { color: #222; }
+.seasonal-section h2 { margin: 0 0 12px; }
+.seasonal-section p { color: #333; line-height: 1.65; }
+.seasonal-section .seasonal-note { color: #666; font-size: 14px; }
+.seasonal-controls { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+.seasonal-controls label { display: flex; flex-direction: column; gap: 7px; font-size: 14px; }
+.seasonal-keyword { flex: 1; min-width: 220px; }
+.seasonal-controls input, .seasonal-controls select {
+  box-sizing: border-box;
+  width: 100%; min-height: 44px; padding: 10px 12px;
+  border: 1px solid #ccc; border-radius: 8px;
+  background: #fff; color: #222; font-size: 15px;
+}
+.seasonal-controls input:focus, .seasonal-controls select:focus {
+  outline: 2px solid #398b3e; outline-offset: 2px;
+}
+.seasonal-section button {
+  min-height: 44px; padding: 10px 16px; border: 0; border-radius: 8px;
+  background: #347d39; color: #fff; cursor: pointer;
+}
+.seasonal-section button:disabled { opacity: .55; cursor: not-allowed; }
+.seasonal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.seasonal-card { border: 1px solid #e4e4e4; border-radius: 10px; padding: 16px; overflow-wrap: anywhere; }
+.seasonal-card img { width: 100%; height: 180px; object-fit: cover; border-radius: 6px; }
+.seasonal-card h3 { font-size: 18px; margin: 12px 0; }
+.seasonal-card p { font-size: 14px; margin: 7px 0; }
+.seasonal-section .seasonal-error { color: #b42318; }
+.seasonal-section .seasonal-warning { color: #805600; }
+@media (max-width: 540px) {
+  .seasonal-section { padding: 16px; }
+  .seasonal-keyword, .seasonal-controls button { flex-basis: 100%; min-width: 0; }
+  .seasonal-grid { grid-template-columns: minmax(0, 1fr); }
+}
