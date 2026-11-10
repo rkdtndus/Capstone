@@ -108,8 +108,18 @@ app.get('/api/seasonal', async (req, res) => {
     
     
     const today = new Date();
-    const year = '2016';
-    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const year = '2019';
+    
+const selectedMonth = Number(
+  req.query.month ?? today.getMonth() + 1
+);
+
+if (!Number.isInteger(selectedMonth) || selectedMonth < 1 || selectedMonth > 12) {
+  return res.status(400).json({ message: '잘못된 월입니다.' });
+}
+
+const month = String(selectedMonth).padStart(2, '0');
+
     
 
 
@@ -173,10 +183,41 @@ app.get('/api/seasonal', async (req, res) => {
       ? raw
       : raw ? [raw] : [];
 
-    const foods = items.slice(0, 3).map((item) => ({
+    
+res.json(
+  items.slice(0, 3).map((item) => {
+    const codes = String(item.rtnImgSeCode || '').split('|');
+    const paths = String(item.rtnFileCours || '').split('|');
+    const files = String(item.rtnStreFileNm || '').split('|');
+
+    let imageIndex = codes.findIndex(
+      (code, index) =>
+        code.trim() === '209005' &&
+        paths[index]?.trim() &&
+        files[index]?.trim()
+    );
+
+    if (imageIndex === -1) {
+      imageIndex = paths.findIndex(
+        (path, index) => path.trim() && files[index]?.trim()
+      );
+    }
+
+    const path = paths[imageIndex]?.trim();
+    const filename = files[imageIndex]?.trim();
+
+    const image = path && filename
+      ? `https://www.nongsaro.go.kr/${path.replace(/^\/+|\/+$/g, '')}/${filename.replace(/^\/+/, '')}`
+      : '';
+
+    return {
       id: item.cntntsNo,
-      name: item.fdmtNm
-    }));
+      name: item.fdmtNm,
+      image
+    };
+  })
+);
+
 
     res.json(foods);
 
@@ -244,8 +285,18 @@ app.get('/api/seasonal/recipes', async (req, res) => {
       });
     }
 
-    const year = '2016';
-    const month = String(new Date().getMonth() + 1).padStart(2, '0');
+    const year = '2019';
+    
+const selectedMonth = Number(
+  req.query.month ?? new Date().getMonth() + 1
+);
+
+if (!Number.isInteger(selectedMonth) || selectedMonth < 1 || selectedMonth > 12) {
+  return res.status(400).json({ message: '잘못된 월입니다.' });
+}
+
+const month = String(selectedMonth).padStart(2, '0');
+
 
     const params = new URLSearchParams({
       apiKey,
