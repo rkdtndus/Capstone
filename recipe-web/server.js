@@ -12,6 +12,7 @@ app.use(cors({
 
 let cachedRecipes = [];
 let cacheTime = 0;
+let pendingRecipes = null;
 
 app.get('/api/recipes', async (req, res) => {
   try {
@@ -31,49 +32,57 @@ app.get('/api/recipes', async (req, res) => {
       return res.json(cachedRecipes);
     }
 
-    let allRecipes = [];
-    let totalCount = 0;
-    let start = 1;
+    // Share the upstream request while React development mode mounts twice.
+    if (!pendingRecipes) {
+      pendingRecipes = (async () => {
+        let allRecipes = [];
+        let totalCount = 0;
+        let start = 1;
 
-    do {
-      const end = totalCount
-        ? Math.min(start + 999, totalCount)
-        : 1000;
+        do {
+          const end = totalCount
+            ? Math.min(start + 999, totalCount)
+            : 1000;
 
-      const url =
-        `https://openapi.foodsafetykorea.go.kr/api/` +
-        `${apiKey}/COOKRCP01/json/${start}/${end}`;
+          const url =
+            `https://openapi.foodsafetykorea.go.kr/api/` +
+            `${apiKey}/COOKRCP01/json/${start}/${end}`;
 
-      const response = await fetch(url);
+          const response = await fetch(url);
 
-      if (!response.ok) {
-        throw new Error('API 요청 실패');
-      }
+          if (!response.ok) {
+            throw new Error('API 요청 실패');
+          }
 
-      const data = await response.json();
-      const result = data.COOKRCP01;
+          const data = await response.json();
+          const result = data.COOKRCP01;
 
-      if (!result || !Array.isArray(result.row)) {
-        throw new Error(
-          result?.RESULT?.MSG ||
-          data.RESULT?.MSG ||
-          'API 데이터 오류'
-        );
-      }
+          if (!result || !Array.isArray(result.row)) {
+            throw new Error(
+              result?.RESULT?.MSG ||
+              data.RESULT?.MSG ||
+              'API 데이터 오류'
+            );
+          }
 
-      totalCount = Number(result.total_count);
-      allRecipes = [...allRecipes, ...result.row];
+          totalCount = Number(result.total_count);
+          allRecipes = [...allRecipes, ...result.row];
 
-      start = end + 1;
+          start = end + 1;
 
-    } while (start <= totalCount);
+        } while (start <= totalCount);
 
-    cachedRecipes = allRecipes;
-    cacheTime = Date.now();
+        cachedRecipes = allRecipes;
+        cacheTime = Date.now();
 
-    console.log(`전체 레시피: ${allRecipes.length}개`);
+        console.log(`전체 레시피: ${allRecipes.length}개`);
+        return allRecipes;
+      })().finally(() => {
+        pendingRecipes = null;
+      });
+    }
 
-    res.json(allRecipes);
+    res.json(await pendingRecipes);
 
   } catch (error) {
     console.error(error.message);
@@ -217,9 +226,6 @@ res.json(
     };
   })
 );
-
-
-    res.json(foods);
 
   } catch (error) {
     console.error('농사로 조회 오류:', error.message);
