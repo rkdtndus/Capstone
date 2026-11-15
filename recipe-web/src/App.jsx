@@ -119,7 +119,7 @@ const resetCustomFilters = () => {
   setResultPage(1);
 };
 
-
+const [seasonalEnabled, setSeasonalEnabled] = useState(false);
 const [seasonalMonth, setSeasonalMonth] = useState(
   new Date().getMonth() + 1
 );
@@ -170,6 +170,7 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
+  if (!seasonalEnabled) return;
   const controller = new AbortController();
   const options = { signal: controller.signal };
   setSeasonalFoods([]);
@@ -227,7 +228,7 @@ useEffect(() => {
     });
 
   return () => controller.abort();
-}, [seasonalMonth]);
+}, [seasonalMonth, seasonalEnabled]);
 
 const filteredRecipes = recipes.filter((recipe) => {
   const search = keyword.trim().toLowerCase();
@@ -461,6 +462,9 @@ const resetSeasonalFilters = () => {
   const seasonalRangeValid = validCalorieRange(seasonalMinCalorie, seasonalMaxCalorie);
 
   function navigate(target) {
+    if (target === 'seasonal') {
+    setSeasonalEnabled(true);
+    }
     if (target === 'seasonal' && activePage !== 'seasonal') {
       setSeasonalMonth(new Date().getMonth() + 1);
       setSelectedSeasonalFood(null);
