@@ -23,39 +23,56 @@ export function TitleOrnament() {
   return <div className="food-title-ornament" aria-hidden="true"><span /><Icon name="chef" size={54} /><span /></div>;
 }
 
+const favoriteCountFormatter = new Intl.NumberFormat("ko-KR", {
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
 export function RecipeCard({
   recipe,
   formatNumber,
   seasonal = false,
   isFavorite = false,
   onToggleFavorite,
+  favoriteCount = null,
   savedMonth = null,
   sourceLabel = "",
   onOpen,
 }) {
   const hasId = (typeof recipe.id === "string" && recipe.id.trim() !== "") ||
     (typeof recipe.id === "number" && Number.isFinite(recipe.id));
+  const hasFavoriteCount = Number.isInteger(favoriteCount) && favoriteCount >= 0;
   return (
     <article className="food-card">
       {onOpen && <button className="food-card-open" type="button" onClick={onOpen} aria-label={(recipe.name || "레시피") + " 상세보기"}><span className="sr-only">상세보기</span></button>}
-      {onToggleFavorite && (
-        <button
-          className={isFavorite ? "food-favorite-button is-saved" : "food-favorite-button"}
-          type="button"
-          aria-label={(recipe.name || "음식") + (isFavorite ? " 즐겨찾기 해제" : " 즐겨찾기 추가")}
-          aria-pressed={isFavorite}
-          title={hasId ? (isFavorite ? "즐겨찾기 해제" : "즐겨찾기 추가") : "레시피 번호가 없어 저장할 수 없습니다."}
-          disabled={!hasId}
-          onClick={onToggleFavorite}
-        >
-          <Icon name="heart" size={21} />
-        </button>
-      )}
       <div className="food-card-photo"><Icon name="pot" size={48} />
         {recipe.image && /^https?:\/\//i.test(recipe.image) && <img src={recipe.image} alt={recipe.name || "음식"} loading="lazy" onError={(event) => { event.currentTarget.style.display = "none"; }} />}
       </div>
       <div className="food-card-body">
-        <h3>{recipe.name || "이름 정보 없음"}</h3>
+        <div className="food-card-heading">
+          <h3>{recipe.name || "이름 정보 없음"}</h3>
+          {onToggleFavorite && (
+            <div className="food-card-favorite">
+              <button
+                className={isFavorite ? "food-favorite-button is-saved" : "food-favorite-button"}
+                type="button"
+                aria-label={(recipe.name || "음식") + (isFavorite ? " 즐겨찾기 해제" : " 즐겨찾기 추가")}
+                aria-pressed={isFavorite}
+                title={hasId ? (isFavorite ? "즐겨찾기 해제" : "즐겨찾기 추가") : "레시피 번호가 없어 저장할 수 없습니다."}
+                disabled={!hasId}
+                onClick={onToggleFavorite}
+              >
+                <Icon name="heart" size={21} />
+              </button>
+              {hasFavoriteCount && (
+                <span className="food-favorite-count" title={"찜 " + favoriteCount.toLocaleString("ko-KR") + "회"}>
+                  <span aria-hidden="true">{favoriteCountFormatter.format(favoriteCount)}</span>
+                  <span className="sr-only">찜 {favoriteCount.toLocaleString("ko-KR")}회</span>
+                </span>
+              )}
+            </div>
+          )}
+        </div>
         <p className="food-ingredients" title={recipe.ingredients}>{recipe.ingredients || "재료 정보가 없습니다."}</p>
         <div className="food-tags">
           {sourceLabel && <span className="food-tag food-tag--soft">{sourceLabel}</span>}

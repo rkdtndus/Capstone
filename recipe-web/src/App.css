@@ -390,11 +390,31 @@ button:disabled { cursor: wait; opacity: .6; }
 .food-artwork--seasonal .food-art--right { background-position: right -174px; }
 
 /* Favorites: use the same recipe cards and browser-local state across pages. */
-.food-favorite-button {
-  position: absolute;
+.food-card-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px;
+  margin-bottom: 7px;
+}
+.food-card-heading h3 { margin: 0; }
+.food-card-favorite {
+  position: relative;
   z-index: 2;
-  top: 9px;
-  right: 9px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.food-favorite-count {
+  color: #6b5947;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+  white-space: nowrap;
+}
+.food-favorite-button {
   display: grid;
   place-items: center;
   width: 36px;
@@ -411,7 +431,6 @@ button:disabled { cursor: wait; opacity: .6; }
 .food-favorite-button.is-saved { color: #e97541; border-color: #f5cbb1; background: #fff4e9; }
 .food-favorite-button.is-saved .food-icon { fill: currentColor; }
 .food-favorite-button:disabled { cursor: not-allowed; opacity: .4; transform: none; }
-.food-card h3 { padding-right: 34px; }
 .food-topbar nav .food-favorites-link { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
 .food-favorites-link > .food-icon { color: #da7b45; }
 .food-favorites-count { min-width: 21px; padding: 0 6px; border-radius: 20px; background: #fff0df; color: #b5652c; font-size: 11px; line-height: 21px; text-align: center; }
@@ -441,8 +460,7 @@ button:disabled { cursor: wait; opacity: .6; }
   .food-topbar nav .food-favorites-link { gap: 4px; }
   .food-favorites-link > .food-icon { width: 15px; height: 15px; }
   .food-favorites-count { min-width: 18px; padding: 0 4px; font-size: 10px; line-height: 18px; }
-  .food-favorite-button { width: 39px; height: 39px; top: 8px; right: 8px; }
-  .food-card h3 { padding-right: 36px; }
+  .food-favorite-button { width: 39px; height: 39px; }
   .food-favorites-page > .food-hero { margin-bottom: 28px; }
   .food-favorites-error { align-items: flex-start; font-size: 12px; gap: 9px; }
   .food-favorites-empty { min-height: 290px; }
