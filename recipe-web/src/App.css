@@ -537,3 +537,15 @@ button:disabled { cursor: wait; opacity: .6; }
   .food-detail-nutrition { gap: 10px; }
   .food-cooking-steps li { gap: 12px; }
 }
+
+
+/* 7가지 수정사항: 상세보기 마지막 완성 사진 */
+.food-finished-image {
+  display: block;
+  width: 100%;
+  max-width: 650px;
+  height: auto;
+  margin: 16px auto 0;
+  border-radius: 15px;
+  object-fit: contain;
+}

@@ -14,7 +14,7 @@ export function Home({ onNavigate }) {
           <p>재료, 요리 종류, 칼로리에 맞게<br />나에게 딱 맞는 레시피를 찾아보세요!</p>
         </button>
         <button type="button" className="food-home-choice food-home-choice--green" onClick={() => onNavigate('seasonal')}>
-          <Icon name="vegetables" size={78} /><h2>제철음식 레시피 검색 <Icon name="arrow" size={30} /></h2>
+          <Icon name="vegetables" size={78} /><h2>제철레시피 <Icon name="arrow" size={30} /></h2>
           <p>지금 가장 맛있는 이달의 음식으로<br />더 신선하고 건강한 요리를 만나보세요!</p>
         </button>
       </div>
@@ -46,7 +46,7 @@ export function RecipeFilters({ min, max, onMin, onMax, sort, onSort, foodType, 
     ['500~700kcal', '500', '700'], ['700kcal 이상', '700', ''],
   ];
   const sorts = [
-    ['default', '기본순'], ['calorieLow', '칼로리 낮은순'], ['calorieHigh', '칼로리 높은순'],
+    ['default', '기본순'], ['likesHigh', '추천수 높은순'], ['calorieLow', '칼로리 낮은순'], ['calorieHigh', '칼로리 높은순'],
     ['proteinLow', '단백질 낮은순'], ['proteinHigh', '단백질 높은순'],
     ['carbLow', '탄수화물 낮은순'], ['carbHigh', '탄수화물 높은순'],
   ];
@@ -111,7 +111,18 @@ export function RecipeDetails({ recipe, fat, steps, ingredientImage, seasonal = 
       <section className="food-detail-section"><h2><Icon name="chef" />조리 방법</h2>
         {steps.length > 0 ? <ol className="food-cooking-steps">{steps.map((step, index) => <li key={index}><span className="food-step-number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span><div><p>{step.text.replace(/^\s*(\d{1,2}[.)]|[①-⑳])\s*/, '')}</p>{step.image && <img src={step.image} alt={'조리 과정 ' + (index + 1)} loading="lazy" />}</div></li>)}</ol> : <p className="food-help">조리 방법 정보가 없습니다.</p>}
       </section>
-      <p className="food-source">{seasonal ? '농촌진흥청 농사로 · 2019년 월별 제철음식 자료' : '식품의약품안전처 조리식품의 레시피 DB'} · 영양정보는 원자료 기준입니다.</p>
+      {recipe.image && (
+        <section className="food-detail-section">
+          <h2><Icon name="chef" />완성된 음식</h2>
+          <img
+            className="food-finished-image"
+            src={recipe.image}
+            alt={`${recipe.name} 완성 사진`}
+            loading="lazy"
+            onError={(event) => { event.currentTarget.style.display = 'none'; }}
+          />
+        </section>
+      )}
     </section>
   );
 }

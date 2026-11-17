@@ -62,7 +62,6 @@ export default function useFavorites() {
   const toggleFavorite = useCallback((source, recipe, metadata = {}) => {
     try {
       const storage = window.localStorage;
-      // Read the latest saved list so another tab's changes are retained.
       const current = readFavorites(storage);
       if (current.error) throw new Error(current.error);
       const next = toggleFavoriteList(current.favorites, source, recipe, metadata);
@@ -71,7 +70,6 @@ export default function useFavorites() {
       } catch {
         throw new Error("즐겨찾기 변경을 저장하지 못했습니다. 브라우저 저장 공간과 사이트 저장 허용 설정을 확인해 주세요.");
       }
-      // Keep the personal list usable even when the recommendation server is offline.
       setState({ favorites: next, error: "" });
       recommendations.refresh();
       return true;

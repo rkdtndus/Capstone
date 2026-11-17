@@ -62,7 +62,7 @@ export function createRecommendationsClient({
         return;
       }
       const data = await request('PUT', { revision, favorites }, signal);
-      if (!data) continue; // Another tab updated this same browser session.
+      if (!data) continue;
       lastSynced = signature;
       const latest = readFavorites();
       if (!latest.error && JSON.stringify(favoriteReferences(latest.favorites)) !== signature) requested = true;

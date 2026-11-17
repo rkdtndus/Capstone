@@ -6,7 +6,7 @@ function showNumber(value, unit) {
   return Number.isFinite(number) ? number + " " + unit : "자료 없음";
 }
 
-export default function Favorites({ favorites, getRecommendationCount, onToggleFavorite, onBrowse }) {
+export default function Favorites({ favorites, getRecommendationCount, onToggleFavorite, onBrowse, onOpen }) {
   return (
     <section className="food-favorites-page" aria-labelledby="favorites-title">
       <div className="food-hero">
@@ -40,6 +40,7 @@ export default function Favorites({ favorites, getRecommendationCount, onToggleF
               favoriteCount={getRecommendationCount(favorite.source, favorite.recipe.id)}
               isFavorite
               onToggleFavorite={() => onToggleFavorite(favorite.source, favorite.recipe)}
+              onOpen={() => onOpen(favorite)}
             />
           ))}
         </div>

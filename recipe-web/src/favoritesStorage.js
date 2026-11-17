@@ -44,7 +44,6 @@ function recipeSnapshot(recipe) {
   };
 }
 
-// Store a copy of the visible card, rather than depending on a future API result.
 export function toggleFavoriteList(favorites, source, recipe, metadata = {}, savedAt = new Date().toISOString()) {
   const key = getFavoriteKey(source, recipe?.id);
   if (!key) throw new Error("레시피 번호가 없어 즐겨찾기에 저장할 수 없습니다.");

@@ -44,7 +44,7 @@ function getSeasonalImages(recipe) {
 
 
 return {
-  main: main?.url || '',
+  main: main?.url || recipe.image || '',
   ingredient: steps[0]?.url || '',
   steps: steps.slice(1)
 };
@@ -54,7 +54,6 @@ return {
 
 
 
-// Adapt only the presentation; recipe-web keeps its original API response fields.
 function foodCard(recipe) {
   return {
     id: recipe.RCP_SEQ, name: recipe.RCP_NM, ingredients: recipe.RCP_PARTS_DTLS,
@@ -66,7 +65,7 @@ function foodCard(recipe) {
 function seasonalCard(recipe) {
   return {
     id: recipe.cntntsNo, name: recipe.fdNm, ingredients: recipe.ingredients,
-    foodGroup: '제철음식', calories: recipe.calories, protein: recipe.protein,
+    foodGroup: '제철레시피', calories: recipe.calories, protein: recipe.protein,
     carbs: recipe.carbohydrate, image: getSeasonalImages(recipe).main,
   };
 }
@@ -83,8 +82,87 @@ function validCalorieRange(min, max) {
     (min === '' || max === '' || Number(min) <= Number(max));
 }
 
+
+function matchesSeasonalIngredient(text, foodName) {
+  const ingredient = String(foodName || '')
+    .trim()
+    .toLowerCase();
+
+  const source = String(text || '').toLowerCase();
+
+  if (!ingredient || !source) return false;
+
+  const aliases = {
+    감: ['감', '단감', '홍시', '연시', '곶감', '대봉감'],
+    쌀: ['쌀', '찹쌀', '멥쌀', '현미', '흑미', '백미', '쌀가루'],
+    토마토: ['토마토', '방울토마토']
+  };
+
+  const keywords = aliases[ingredient] || [ingredient];
+
+  return keywords.some((keyword) => {
+    const escaped = keyword.replace(
+      /[.*+?^${}()|[\]\\]/g,
+      '\\$&'
+    );
+
+    const pattern = new RegExp(
+      `(^|[^가-힣a-z0-9])${escaped}(?=$|[^가-힣a-z])`,
+      'i'
+    );
+
+    return pattern.test(source);
+  });
+}
+
+
+
+function matchesRecipeKeyword(name, ingredients, keyword) {
+  const input = keyword.trim();
+
+  if (input === "") return true;
+
+  const words = input
+    .split(",")
+    .map((word) => word.trim().toLowerCase());
+
+  const invalidFormat = words.some(
+    (word) => word === "" || /\s/.test(word)
+  );
+
+  if (invalidFormat) return false;
+
+  const text = `${name || ""} ${ingredients || ""}`
+    .replace(/\s/g, "")
+    .toLowerCase();
+
+  return words.every((word) => text.includes(word));
+}
+
+
+
 function App() {
   const [page, setPage] = useState('home');
+
+  useEffect(() => {
+    window.history.replaceState(
+      { ...window.history.state, recipeWebPage: 'home' },
+      '',
+      `${window.location.pathname}${window.location.search}#home`
+    );
+
+    const onPopState = (event) => {
+      const previousPage = event.state?.recipeWebPage || 'home';
+      if (previousPage === 'seasonal' || previousPage === 'seasonal-detail') {
+        setSeasonalEnabled(true);
+      }
+      setPage(previousPage);
+    };
+
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
   const { favorites, isFavorite, toggleFavorite, error: favoritesError, dismissError,
     getRecommendationCount, recommendationsError, retryRecommendations } = useFavorites();
   const [recipesLoading, setRecipesLoading] = useState(true);
@@ -92,7 +170,7 @@ function App() {
   const [seasonalRecipesLoading, setSeasonalRecipesLoading] = useState(true);
 
   useEffect(() => {
-    const title = { home: '오늘의 레시피 찾기', custom: '맞춤 레시피 검색', seasonal: '제철음식 레시피 검색', favorites: '찜한 레시피', detail: '레시피 상세보기', 'seasonal-detail': '제철음식 상세보기' };
+    const title = { home: '오늘의 레시피 찾기', custom: '맞춤 레시피 검색', seasonal: '제철레시피', favorites: '찜한 레시피', detail: '레시피 상세보기', 'seasonal-detail': '제철레시피 상세보기' };
     document.title = title[page] + (page === 'home' ? '' : ' | 오늘의 레시피 찾기');
     window.scrollTo(0, 0);
   }, [page]);
@@ -106,6 +184,7 @@ function App() {
   const [foodType, setFoodType] = useState('전체');
   const [cookingMethod, setCookingMethod] = useState('전체');
   const [selectedRecipe, setSelectedRecipe] = useState(null);
+  const [detailReturnPage, setDetailReturnPage] = useState('custom');
   const [resultPage, setResultPage] = useState(1);
 
 
@@ -125,6 +204,8 @@ const [seasonalMonth, setSeasonalMonth] = useState(
   new Date().getMonth() + 1
 );
 
+const [selectedSeasonalDetailMonth, setSelectedSeasonalDetailMonth] =
+  useState(null);
 
   const [seasonalFoods, setSeasonalFoods] = useState([]);
   const [selectedSeasonalFood, setSelectedSeasonalFood] = useState(null);
@@ -232,15 +313,11 @@ useEffect(() => {
 }, [seasonalMonth, seasonalEnabled]);
 
 const filteredRecipes = recipes.filter((recipe) => {
-  const search = keyword.trim().toLowerCase();
-
-  const name = (recipe.RCP_NM || '').toLowerCase();
-  const ingredients = (recipe.RCP_PARTS_DTLS || '').toLowerCase();
-
   const kcal = Number(recipe.INFO_ENG);
 
-  const matchesSearch =
-    name.includes(search) || ingredients.includes(search);
+  const matchesSearch = matchesRecipeKeyword(
+    recipe.RCP_NM, recipe.RCP_PARTS_DTLS, keyword
+  );
 
   const matchesMin =
     minCalorie === '' || kcal >= Number(minCalorie);
@@ -268,6 +345,10 @@ const filteredRecipes = recipes.filter((recipe) => {
 
 const sortedRecipes = [...filteredRecipes].sort((a, b) => {
   switch (sortBy) {
+    case 'likesHigh':
+      return (getRecommendationCount('food', b.RCP_SEQ) ?? 0) -
+        (getRecommendationCount('food', a.RCP_SEQ) ?? 0);
+
     case 'calorieLow':
       return Number(a.INFO_ENG) - Number(b.INFO_ENG);
 
@@ -325,36 +406,46 @@ useEffect(() => {
 
 
 const matchingSeasonalRecipes = selectedSeasonalFood
-  ? seasonalRecipes.filter((recipe) => {
-      const normalize = (text) =>
-        String(text || '').replace(/\s/g, '').toLowerCase();
-
-      const foodName = normalize(selectedSeasonalFood.name);
-      const recipeName = normalize(recipe.fdNm);
-      const ingredients = normalize(recipe.ingredients);
-
-      const searchText = recipeName + ingredients;
-
-      if (foodName === '쌀') {
-        const riceKeywords = [
-          '쌀',
-          '찹쌀',
-          '멥쌀',
-          '오색미',
-          '현미',
-          '흑미',
-          '백미'
-        ];
-
-        return riceKeywords.some((keyword) =>
-          searchText.includes(keyword)
-        );
-      }
-
-      return searchText.includes(foodName);
-    })
+  ? seasonalRecipes
+      .filter((recipe) => matchesSeasonalIngredient(
+        recipe.ingredients || recipe.fdNm,
+        selectedSeasonalFood.name
+      ))
+      .map((recipe) => ({ ...recipe, source: 'seasonal' }))
   : [];
 
+const matchingGeneralRecipes = selectedSeasonalFood
+  ? recipes
+      .filter((recipe) => matchesSeasonalIngredient(
+        recipe.RCP_PARTS_DTLS,
+        selectedSeasonalFood.name
+      ))
+      .map((recipe) => ({
+        source: 'food',
+        originalRecipe: recipe,
+        cntntsNo: recipe.RCP_SEQ,
+        fdNm: recipe.RCP_NM,
+        ingredients: recipe.RCP_PARTS_DTLS,
+        calories: recipe.INFO_ENG,
+        protein: recipe.INFO_PRO,
+        carbohydrate: recipe.INFO_CAR,
+      }))
+  : [];
+
+const normalizedSeasonalNames = new Set(
+  matchingSeasonalRecipes.map((recipe) =>
+    String(recipe.fdNm || '').replace(/\s+/g, '').toLowerCase()
+  )
+);
+
+const combinedSeasonalRecipes = [
+  ...matchingSeasonalRecipes,
+  ...matchingGeneralRecipes.filter((recipe) =>
+    !normalizedSeasonalNames.has(
+      String(recipe.fdNm || '').replace(/\s+/g, '').toLowerCase()
+    )
+  ),
+];
 
 
 const toNumber = (value) => {
@@ -367,16 +458,13 @@ const toNumber = (value) => {
   return Number.isFinite(number) ? number : null;
 };
 
-const sortedSeasonalRecipes = matchingSeasonalRecipes
+const sortedSeasonalRecipes = combinedSeasonalRecipes
   .filter((recipe) => {
-    const search = seasonalKeyword.trim().toLowerCase();
-
-    const name = (recipe.fdNm || '').toLowerCase();
-    const ingredients = (recipe.ingredients || '').toLowerCase();
     const kcal = toNumber(recipe.calories);
 
-    const matchesSearch =
-      name.includes(search) || ingredients.includes(search);
+    const matchesSearch = matchesRecipeKeyword(
+      recipe.fdNm, recipe.ingredients, seasonalKeyword
+    );
 
     const matchesMin =
       seasonalMinCalorie === '' ||
@@ -389,6 +477,14 @@ const sortedSeasonalRecipes = matchingSeasonalRecipes
     return matchesSearch && matchesMin && matchesMax;
   })
   .sort((a, b) => {
+    if (seasonalSort === 'likesHigh') {
+      const likes = (recipe) => getRecommendationCount(
+        recipe.source === 'food' ? 'food' : 'seasonal',
+        recipe.cntntsNo
+      ) ?? 0;
+      return likes(b) - likes(a);
+    }
+
     const sortOptions = {
       calorieLow: ['calories', 1],
       calorieHigh: ['calories', -1],
@@ -415,7 +511,7 @@ const sortedSeasonalRecipes = matchingSeasonalRecipes
 
 
 
-const seasonalPageSize = 5;
+const seasonalPageSize = 20;
 
 const seasonalTotalPages = Math.max(
   1,
@@ -457,10 +553,28 @@ const resetSeasonalFilters = () => {
 
 
 
-  const activePage = page === 'detail' ? 'custom' : page === 'seasonal-detail' ? 'seasonal' : page;
+  const activePage = page === 'detail' ? detailReturnPage : page === 'seasonal-detail' ? 'seasonal' : page;
   const pageStyle = activePage === 'custom' ? 'search' : activePage;
   const customRangeValid = validCalorieRange(minCalorie, maxCalorie);
   const seasonalRangeValid = validCalorieRange(seasonalMinCalorie, seasonalMaxCalorie);
+
+  function changePage(target) {
+    if (target === page) return;
+    window.history.pushState(
+      { recipeWebPage: target, recipeWebFromPage: page },
+      '',
+      `#${target}`
+    );
+    setPage(target);
+  }
+
+  function backFromDetail(fallbackPage) {
+    if (window.history.state?.recipeWebFromPage === fallbackPage) {
+      window.history.back();
+    } else {
+      changePage(fallbackPage);
+    }
+  }
 
   function navigate(target) {
     if (target === 'seasonal') {
@@ -471,13 +585,98 @@ const resetSeasonalFilters = () => {
       setSelectedSeasonalFood(null);
       resetSeasonalFilters();
     }
-    setPage(target);
+    changePage(target);
   }
 
   function chooseFood(food) {
     setSelectedSeasonalFood(food);
     resetSeasonalFilters();
   }
+
+
+async function openFavorite(favorite) {
+  const saved = favorite.recipe;
+  const id = String(saved.id);
+
+  if (favorite.source === 'food') {
+    const original = recipes.find(
+      (recipe) => String(recipe.RCP_SEQ) === id
+    );
+
+    const fallback = {
+      RCP_SEQ: id,
+      RCP_NM: saved.name,
+      RCP_PARTS_DTLS: saved.ingredients,
+      RCP_PAT2: saved.category,
+      RCP_WAY2: saved.method,
+      INFO_ENG: saved.calories,
+      INFO_PRO: saved.protein,
+      INFO_CAR: saved.carbs,
+      ATT_FILE_NO_MAIN: saved.image
+    };
+
+    setSelectedRecipe(original || fallback);
+    setDetailReturnPage('favorites');
+    changePage('detail');
+    return;
+  }
+
+  const month = favorite.sourceMonth;
+
+  setSelectedSeasonalRecipe({
+    cntntsNo: id,
+    fdNm: saved.name,
+    ingredients: saved.ingredients,
+    method: '',
+    calories: saved.calories,
+    protein: saved.protein,
+    carbohydrate: saved.carbs,
+    image: saved.image,
+    fat: null
+  });
+
+  setSelectedSeasonalDetailMonth(month);
+  setDetailReturnPage('favorites');
+  changePage('seasonal-detail');
+
+  const [listResult, detailResult] = await Promise.allSettled([
+    fetch(`/api/seasonal/recipes?month=${month}`)
+      .then((response) => response.ok ? response.json() : null),
+
+    fetch(`/api/seasonal/recipes/${encodeURIComponent(id)}`)
+      .then((response) => response.ok ? response.json() : null)
+  ]);
+
+  const list = listResult.status === 'fulfilled'
+    ? listResult.value
+    : null;
+
+  const detail = detailResult.status === 'fulfilled'
+    ? detailResult.value
+    : null;
+
+  const original = list?.recipes?.find(
+    (recipe) => String(recipe.cntntsNo) === id
+  );
+
+  if (!original && !detail) return;
+
+  setSelectedSeasonalRecipe((current) => {
+    if (String(current?.cntntsNo) !== id) return current;
+
+    return {
+      ...current,
+      ...(original || {}),
+      ingredients: detail?.ingredients ?? current.ingredients,
+      method: detail?.method ?? current.method,
+      calories: detail?.calories ?? current.calories,
+      protein: detail?.protein ?? current.protein,
+      carbohydrate: detail?.carbohydrate ?? current.carbohydrate,
+      fat: detail?.fat ?? current.fat
+    };
+  });
+}
+
 
   return (
     <div className={'food-app food-page--' + pageStyle}>
@@ -487,7 +686,7 @@ const resetSeasonalFilters = () => {
           <nav aria-label="주 메뉴">
             <button type="button" aria-current={activePage === 'home' ? 'page' : undefined} onClick={() => navigate('home')}>홈</button>
             <button type="button" aria-current={activePage === 'custom' ? 'page' : undefined} onClick={() => navigate('custom')}>레시피 둘러보기</button>
-            <button type="button" aria-current={activePage === 'seasonal' ? 'page' : undefined} onClick={() => navigate('seasonal')}>제철음식</button>
+            <button type="button" aria-current={activePage === 'seasonal' ? 'page' : undefined} onClick={() => navigate('seasonal')}>제철레시피</button>
             <button className="food-favorites-link" type="button" aria-current={activePage === 'favorites' ? 'page' : undefined} onClick={() => navigate('favorites')} aria-label={'찜한 레시피 ' + favorites.length + '개'}><Icon name="heart" size={20} /><span>찜한 레시피</span><span className="food-favorites-count" aria-hidden="true">{favorites.length}</span></button>
           </nav>
           <button className="food-header-search" type="button" onClick={() => navigate('custom')} aria-label="레시피 검색"><Icon name="search" size={24} /></button>
@@ -504,7 +703,7 @@ const resetSeasonalFilters = () => {
             <section className="food-hero" aria-labelledby="search-title">
               <TitleOrnament /><h1 id="search-title">맞춤 <em>레시피 검색</em></h1>
               <p className="food-lead">원하는 재료, 칼로리, 요리 종류로 나에게 딱 맞는 레시피를 찾아보세요!</p>
-              <SearchForm id="general-keyword" value={searchInput} onChange={setSearchInput} onSearch={() => setKeyword(searchInput)} />
+              <SearchForm id="general-keyword" value={searchInput} onChange={(value) => { setSearchInput(value); setKeyword(value); }} onSearch={() => setKeyword(searchInput)} placeholder="예: 토마토, 소고기 (쉼표로 여러 재료 검색)" />
             </section>
             <RecipeFilters min={minCalorie} max={maxCalorie} onMin={setMinCalorie} onMax={setMaxCalorie} sort={sortBy} onSort={setSortBy} foodType={foodType} onFoodType={setFoodType} cookingMethod={cookingMethod} onCookingMethod={setCookingMethod} />
             <section className="food-results" aria-labelledby="general-results-title" aria-busy={recipesLoading}>
@@ -513,7 +712,7 @@ const resetSeasonalFilters = () => {
               {error && <p className="food-error" role="alert">{error}</p>}
               {!customRangeValid && <p className="food-error" role="alert">최소·최대 칼로리를 올바르게 입력해 주세요.</p>}
               {!recipesLoading && !error && customRangeValid && <>
-                <div className="food-grid">{visibleRecipes.map((recipe) => <RecipeCard key={recipe.RCP_SEQ} recipe={foodCard(recipe)} formatNumber={showNumber} favoriteCount={getRecommendationCount('food', recipe.RCP_SEQ)} isFavorite={isFavorite('food', recipe.RCP_SEQ)} onToggleFavorite={() => toggleFavorite('food', foodCard(recipe))} onOpen={() => { setSelectedRecipe(recipe); setPage('detail'); }} />)}</div>
+                <div className="food-grid">{visibleRecipes.map((recipe) => <RecipeCard key={recipe.RCP_SEQ} recipe={foodCard(recipe)} formatNumber={showNumber} favoriteCount={getRecommendationCount('food', recipe.RCP_SEQ)} isFavorite={isFavorite('food', recipe.RCP_SEQ)} onToggleFavorite={() => toggleFavorite('food', foodCard(recipe))} onOpen={() => { setDetailReturnPage('custom'); setSelectedRecipe(recipe); changePage('detail'); }} />)}</div>
                 {sortedRecipes.length === 0 && <p className="food-empty">조건에 맞는 레시피가 없어요. 검색어나 필터를 바꿔보세요.</p>}
                 {sortedRecipes.length > 0 && <Pagination page={resultPage} total={totalPages} onChange={setResultPage} />}
                 <p className="food-source">식품의약품안전처 조리식품의 레시피 DB · 불러온 레시피 {recipes.length}개 · 영양정보는 원자료 기준입니다.</p>
@@ -523,7 +722,7 @@ const resetSeasonalFilters = () => {
 
           {page === 'seasonal' && <div className="food-seasonal-page">
             <section className="food-hero food-seasonal-hero" aria-labelledby="seasonal-title">
-              <TitleOrnament /><h1 id="seasonal-title">제철음식 <em>레시피 검색</em></h1>
+              <TitleOrnament /><h1 id="seasonal-title">제철 <em>레시피 검색</em></h1>
               <p className="food-lead">지금 가장 맛있는 제철 재료로 건강하고 맛있는 요리를 만나보세요!</p>
             </section>
             <section className="food-month-banner" aria-label={seasonalMonth + '월 제철 식재료'} aria-busy={seasonalFoodsLoading}>
@@ -534,7 +733,7 @@ const resetSeasonalFilters = () => {
                   <label className="sr-only" htmlFor="seasonal-month">제철음식 조회 월</label><select id="seasonal-month" value={seasonalMonth} onChange={(event) => setSeasonalMonth(Number(event.target.value))}>{Array.from({ length: 12 }, (_, index) => index + 1).map((month) => <option key={month} value={month}>{month}월</option>)}</select>
                   <button type="button" className="food-quiet" aria-label="다음 달" onClick={() => setSeasonalMonth((month) => month === 12 ? 1 : month + 1)}><Icon name="arrow" size={15} /></button>
                 </div>}
-                <span className="food-calendar-chip">농사로 · 2019년 월별 자료</span>
+                
               </div>
               {seasonalFoodsLoading ? <p className="food-month-previews-empty" role="status">제철 식재료를 불러오고 있어요.</p> : seasonalFoods.length > 0 ? <div className="food-month-previews">
                 {seasonalFoods.map((food) => <button key={food.id} type="button" className={selectedSeasonalFood?.id === food.id ? 'food-month-preview is-active' : 'food-month-preview'} aria-pressed={selectedSeasonalFood?.id === food.id} onClick={() => chooseFood(food)}><div><Icon name="vegetables" size={38} />{food.image && <img src={food.image} alt="" onError={(event) => { event.currentTarget.style.display = 'none'; }} />}</div><span>{food.name}<small>제철 식재료</small></span></button>)}
@@ -544,32 +743,80 @@ const resetSeasonalFilters = () => {
             {!selectedSeasonalFood && !seasonalFoodsLoading && seasonalFoods.length > 0 && <div className="food-seasonal-choices-note"><p className="food-lead">원하는 제철 식재료를 선택하세요.</p><p className="food-help">식재료를 누르면 해당 재료로 만들 수 있는 레시피가 나타나요.</p></div>}
             {selectedSeasonalFood && <>
               <div className="food-section-heading food-seasonal-results-heading"><h2><Icon name="leaf" size={26} />{selectedSeasonalFood.name} 관련 레시피</h2><button className="food-quiet" type="button" onClick={() => { setSelectedSeasonalFood(null); resetSeasonalFilters(); }}>식재료 선택으로 돌아가기</button></div>
-              <SearchForm id="seasonal-keyword" value={seasonalSearchInput} onChange={setSeasonalSearchInput} onSearch={() => setSeasonalKeyword(seasonalSearchInput)} placeholder="음식명 또는 재료 검색" />
+              <SearchForm id="seasonal-keyword" value={seasonalSearchInput} onChange={(value) => { setSeasonalSearchInput(value); setSeasonalKeyword(value); }} onSearch={() => setSeasonalKeyword(seasonalSearchInput)} placeholder="음식명 또는 재료 검색 (예: 토마토, 소고기)" />
               <RecipeFilters min={seasonalMinCalorie} max={seasonalMaxCalorie} onMin={setSeasonalMinCalorie} onMax={setSeasonalMaxCalorie} sort={seasonalSort} onSort={setSeasonalSort} />
               <section className="food-results" aria-labelledby="seasonal-results-title" aria-busy={seasonalRecipesLoading}>
                 <div className="food-section-heading"><h2 id="seasonal-results-title">검색 결과 <strong>{!seasonalRecipesLoading ? sortedSeasonalRecipes.length + '건' : ''}</strong></h2><button className="food-quiet" type="button" onClick={resetSeasonalFilters}><Icon name="refresh" size={16} />조건 초기화</button></div>
                 {seasonalRecipesLoading && <p className="food-status" role="status">제철 레시피를 불러오고 있어요.</p>}
                 {!seasonalRangeValid && <p className="food-error" role="alert">최소·최대 칼로리를 올바르게 입력해 주세요.</p>}
                 {!seasonalRecipesLoading && seasonalRangeValid && <>
-                  <div className="food-grid">{visibleSeasonalRecipes.map((recipe) => <RecipeCard key={recipe.cntntsNo} recipe={seasonalCard(recipe)} formatNumber={showNumber} seasonal savedMonth={seasonalMonth} favoriteCount={getRecommendationCount('seasonal', recipe.cntntsNo)} isFavorite={isFavorite('seasonal', recipe.cntntsNo)} onToggleFavorite={() => toggleFavorite('seasonal', seasonalCard(recipe), { month: seasonalMonth })} onOpen={() => { setSelectedSeasonalRecipe(recipe); setPage('seasonal-detail'); }} />)}</div>
+                  <div className="food-grid">
+                    {visibleSeasonalRecipes.map((recipe) =>
+                      recipe.source === 'food' ? (
+                        <RecipeCard
+                          key={`food-${recipe.cntntsNo}`}
+                            recipe={{
+                              ...foodCard(recipe.originalRecipe),
+                              foodGroup: '제철음식포함',
+                              category: '',
+                              method: ''
+                            }}
+                          savedMonth={seasonalMonth}
+                          formatNumber={showNumber}
+                          favoriteCount={getRecommendationCount('food', recipe.cntntsNo)}
+                          isFavorite={isFavorite('food', recipe.cntntsNo)}
+                          onToggleFavorite={() => toggleFavorite('food', foodCard(recipe.originalRecipe))}
+                          onOpen={() => {
+                            setDetailReturnPage('seasonal');
+                            setSelectedRecipe(recipe.originalRecipe);
+                            changePage('detail');
+                          }}
+                        />
+                      ) : (
+                        <RecipeCard
+                          key={`seasonal-${recipe.cntntsNo}`}
+                          recipe={seasonalCard(recipe)}
+                          formatNumber={showNumber}
+                          seasonal
+                          savedMonth={seasonalMonth}
+                          favoriteCount={getRecommendationCount('seasonal', recipe.cntntsNo)}
+                          isFavorite={isFavorite('seasonal', recipe.cntntsNo)}
+                          onToggleFavorite={() => toggleFavorite('seasonal', seasonalCard(recipe), { month: seasonalMonth })}
+                          onOpen={() => {
+                            setSelectedSeasonalRecipe(recipe);
+                            setSelectedSeasonalDetailMonth(seasonalMonth);
+                            setDetailReturnPage('seasonal');
+                            changePage('seasonal-detail');
+                          }}
+                        />
+                      )
+                    )}
+                  </div>
                   {sortedSeasonalRecipes.length > 0 ? <Pagination page={seasonalResultPage} total={seasonalTotalPages} onChange={setSeasonalResultPage} /> : <p className="food-empty">일치하는 레시피가 없습니다.</p>}
                 </>}
               </section>
             </>}
-            <p className="food-source">농촌진흥청 농사로 · 2019년 {seasonalMonth}월 제철음식 자료 · 영양정보는 원자료 기준입니다.</p>
           </div>}
 
           {page === 'detail' && selectedRecipe && <RecipeDetails
             recipe={foodCard(selectedRecipe)} fat={selectedRecipe.INFO_FAT} favoriteCount={getRecommendationCount('food', selectedRecipe.RCP_SEQ)}
             steps={Array.from({ length: 20 }, (_, index) => { const number = String(index + 1).padStart(2, '0'); return { text: selectedRecipe['MANUAL' + number], image: selectedRecipe['MANUAL_IMG' + number] }; }).filter((step) => step.text?.trim())}
-            onBack={() => setPage('custom')} isFavorite={isFavorite('food', selectedRecipe.RCP_SEQ)} onToggleFavorite={() => toggleFavorite('food', foodCard(selectedRecipe))}
+            onBack={() => backFromDetail(detailReturnPage)} isFavorite={isFavorite('food', selectedRecipe.RCP_SEQ)} onToggleFavorite={() => toggleFavorite('food', foodCard(selectedRecipe))}
           />}
           {page === 'seasonal-detail' && selectedSeasonalRecipe && <RecipeDetails
             recipe={seasonalCard(selectedSeasonalRecipe)} fat={selectedSeasonalRecipe.fat} favoriteCount={getRecommendationCount('seasonal', selectedSeasonalRecipe.cntntsNo)} seasonal ingredientImage={seasonalImages.ingredient}
             steps={cookingSteps.map((text, index) => ({ text, image: seasonalImages.steps[index]?.url }))}
-            onBack={() => setPage('seasonal')} isFavorite={isFavorite('seasonal', selectedSeasonalRecipe.cntntsNo)} onToggleFavorite={() => toggleFavorite('seasonal', seasonalCard(selectedSeasonalRecipe), { month: seasonalMonth })}
+            onBack={() => backFromDetail(detailReturnPage)} isFavorite={isFavorite('seasonal', selectedSeasonalRecipe.cntntsNo)} onToggleFavorite={() => toggleFavorite('seasonal', seasonalCard(selectedSeasonalRecipe), { month: selectedSeasonalDetailMonth ?? seasonalMonth })}
           />}
-          {page === 'favorites' && <Favorites favorites={favorites} getRecommendationCount={getRecommendationCount} onToggleFavorite={toggleFavorite} onBrowse={() => navigate('custom')} />}
+          {page === 'favorites' && (
+            <Favorites
+              favorites={favorites}
+              getRecommendationCount={getRecommendationCount}
+              onToggleFavorite={toggleFavorite}
+              onBrowse={() => navigate('custom')}
+              onOpen={openFavorite}
+            />
+          )}
         </main>
         <div className="food-bottom-waves" aria-hidden="true"><span /><span /></div>
       </div>

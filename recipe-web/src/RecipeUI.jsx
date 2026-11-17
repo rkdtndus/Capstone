@@ -78,7 +78,11 @@ export function RecipeCard({
           {sourceLabel && <span className="food-tag food-tag--soft">{sourceLabel}</span>}
           {(recipe.foodGroup || recipe.category) && <span className="food-tag">{recipe.foodGroup || recipe.category}</span>}
           {recipe.method && <span className="food-tag food-tag--soft">{recipe.method}</span>}
-          {seasonal && <span className="food-tag food-tag--orange">{savedMonth ? savedMonth + "월 제철 자료" : "이달의 음식"}</span>}
+          {(seasonal || savedMonth != null) && (
+            <span className="food-tag food-tag--orange">
+              {savedMonth ? `${savedMonth}월 제철 재료` : "이달의 음식"}
+            </span>
+          )}
         </div>
         <p className="food-card-calories"><Icon name="flame" size={19} /><strong>{formatNumber(recipe.calories, "kcal")}</strong></p>
         <dl className="food-nutrition"><div><dt>단백질</dt><dd>{formatNumber(recipe.protein, "g")}</dd></div><div><dt>탄수화물</dt><dd>{formatNumber(recipe.carbs, "g")}</dd></div></dl>
