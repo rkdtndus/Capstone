@@ -87,7 +87,7 @@ function nutrition(value, unit) {
   return value === null || value === undefined || String(value).trim() === '' ? '자료 없음' : value + ' ' + unit;
 }
 
-export function RecipeDetails({ recipe, fat, steps, ingredientImage, seasonal = false, onBack, isFavorite, onToggleFavorite }) {
+export function RecipeDetails({ recipe, fat, steps, ingredientImage, seasonal = false, onBack, isFavorite, onToggleFavorite, favoriteCount = null }) {
   return (
     <section className="food-detail" aria-labelledby="recipe-detail-title">
       <button className="food-quiet food-detail-back" type="button" onClick={onBack}><span className="food-back-arrow"><Icon name="arrow" size={17} /></span>검색 결과로 돌아가기</button>
@@ -97,7 +97,7 @@ export function RecipeDetails({ recipe, fat, steps, ingredientImage, seasonal = 
           <span className="food-tag">{seasonal ? '제철 레시피' : recipe.category || '레시피'}</span>
           <h1 id="recipe-detail-title">{recipe.name}</h1>
           <p className="food-lead">{seasonal ? '제철 재료로 만드는 맛있는 한 끼' : '오늘의 식탁을 위한 맛있는 한 끼'}</p>
-          <button type="button" className={isFavorite ? 'food-quiet food-detail-save is-saved' : 'food-quiet food-detail-save'} aria-pressed={isFavorite} onClick={onToggleFavorite}><Icon name="heart" size={19} />{isFavorite ? '찜한 레시피 해제' : '레시피 찜하기'}</button>
+          <button type="button" className={isFavorite ? 'food-quiet food-detail-save is-saved' : 'food-quiet food-detail-save'} aria-pressed={isFavorite} onClick={onToggleFavorite}><Icon name="heart" size={19} />{isFavorite ? '찜한 레시피 해제' : '레시피 찜하기'}{Number.isInteger(favoriteCount) && favoriteCount >= 0 && <span> · 추천 {favoriteCount.toLocaleString('ko-KR')}개</span>}</button>
           <h2>영양정보</h2>
           <dl className="food-detail-nutrition">
             {[['칼로리', recipe.calories, 'kcal'], ['단백질', recipe.protein, 'g'], ['탄수화물', recipe.carbs, 'g'], ['지방', fat, 'g']].map(([label, value, unit]) => <div key={label}><dt>{label}</dt><dd>{nutrition(value, unit)}</dd></div>)}

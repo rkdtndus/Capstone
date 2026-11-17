@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
 import { consumeFoodApiCall } from './foodApiLimit.js';
+import { createLikesRouter } from './likes.js';
 
 const app = express();
 
@@ -13,6 +14,8 @@ app.use(cors({
 const MAX_EXTERNAL_CALLS = 2;
 const MAX_WAITING_CALLS = 50;
 const MAX_QUEUE_WAIT_MS = 30_000;
+app.use('/api/likes', createLikesRouter().router);
+
 
 let activeExternalCalls = 0;
 const externalCallQueue = [];

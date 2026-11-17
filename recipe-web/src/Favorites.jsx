@@ -6,7 +6,7 @@ function showNumber(value, unit) {
   return Number.isFinite(number) ? number + " " + unit : "자료 없음";
 }
 
-export default function Favorites({ favorites, onToggleFavorite, onBrowse }) {
+export default function Favorites({ favorites, getRecommendationCount, onToggleFavorite, onBrowse }) {
   return (
     <section className="food-favorites-page" aria-labelledby="favorites-title">
       <div className="food-hero">
@@ -37,6 +37,7 @@ export default function Favorites({ favorites, onToggleFavorite, onBrowse }) {
               seasonal={favorite.source === "seasonal"}
               savedMonth={favorite.sourceMonth}
               sourceLabel={favorite.source === "seasonal" ? "제철음식" : "일반 음식"}
+              favoriteCount={getRecommendationCount(favorite.source, favorite.recipe.id)}
               isFavorite
               onToggleFavorite={() => onToggleFavorite(favorite.source, favorite.recipe)}
             />
@@ -46,6 +47,7 @@ export default function Favorites({ favorites, onToggleFavorite, onBrowse }) {
 
       <p className="food-source food-favorites-note">
         찜한 레시피는 이 브라우저에 저장됩니다. 브라우저의 사이트 데이터를 삭제하면 목록도 지워집니다.
+        하트를 누르거나 해제하면 공통 추천수에도 반영됩니다.
         저장 당시의 재료·영양정보를 표시하며, 제철음식은 표시된 월의 자료입니다.
       </p>
     </section>

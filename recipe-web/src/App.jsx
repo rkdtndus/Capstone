@@ -85,7 +85,8 @@ function validCalorieRange(min, max) {
 
 function App() {
   const [page, setPage] = useState('home');
-  const { favorites, isFavorite, toggleFavorite, error: favoritesError, dismissError } = useFavorites();
+  const { favorites, isFavorite, toggleFavorite, error: favoritesError, dismissError,
+    getRecommendationCount, recommendationsError, retryRecommendations } = useFavorites();
   const [recipesLoading, setRecipesLoading] = useState(true);
   const [seasonalFoodsLoading, setSeasonalFoodsLoading] = useState(true);
   const [seasonalRecipesLoading, setSeasonalRecipesLoading] = useState(true);
@@ -151,7 +152,7 @@ const [seasonalMonth, setSeasonalMonth] = useState(
 
 useEffect(() => {
   const controller = new AbortController();
-  fetch('http://localhost:3001/api/recipes', { signal: controller.signal })
+  fetch('/api/recipes', { signal: controller.signal })
     .then((response) => {
       if (!response.ok) throw new Error('레시피 조회 실패');
       return response.json();
@@ -180,7 +181,7 @@ useEffect(() => {
   setSeasonalFoodsLoading(true);
   setSeasonalRecipesLoading(true);
 
-  fetch(`http://localhost:3001/api/seasonal?month=${seasonalMonth}`, options)
+  fetch(`/api/seasonal?month=${seasonalMonth}`, options)
     .then((response) => {
       if (!response.ok) throw new Error('제철 식재료 조회 실패');
       return response.json();
@@ -196,7 +197,7 @@ useEffect(() => {
       if (!controller.signal.aborted) setSeasonalFoodsLoading(false);
     });
 
-  fetch(`http://localhost:3001/api/seasonal/recipes?month=${seasonalMonth}`, options)
+  fetch(`/api/seasonal/recipes?month=${seasonalMonth}`, options)
     .then((response) => {
       if (!response.ok) throw new Error('제철 레시피 조회 실패');
       return response.json();
@@ -205,7 +206,7 @@ useEffect(() => {
       const foodRecipes = data.recipes.filter((recipe) => recipe.fdSeCode === '290001');
       const detailedRecipes = await Promise.all(foodRecipes.map(async (recipe) => {
         try {
-          const response = await fetch(`http://localhost:3001/api/seasonal/recipes/${recipe.cntntsNo}`, options);
+          const response = await fetch(`/api/seasonal/recipes/${recipe.cntntsNo}`, options);
           if (!response.ok) throw new Error('상세정보 조회 실패');
           const detail = await response.json();
           return {
@@ -495,6 +496,7 @@ const resetSeasonalFilters = () => {
       <div className="food-page-body">
         <FoodArtwork seasonal={activePage === 'seasonal'} />
         <main className="food-main">
+          {recommendationsError && <div className="food-error food-favorites-error" role="status"><p>{recommendationsError} 개인 찜 목록은 이 브라우저에 유지됩니다.</p><button className="food-quiet" type="button" onClick={retryRecommendations}>다시 시도</button></div>}
           {favoritesError && <div className="food-error food-favorites-error" role="alert"><p>{favoritesError}</p><button className="food-quiet" type="button" onClick={dismissError}>확인</button></div>}
           {page === 'home' && <Home onNavigate={navigate} />}
 
@@ -511,7 +513,7 @@ const resetSeasonalFilters = () => {
               {error && <p className="food-error" role="alert">{error}</p>}
               {!customRangeValid && <p className="food-error" role="alert">최소·최대 칼로리를 올바르게 입력해 주세요.</p>}
               {!recipesLoading && !error && customRangeValid && <>
-                <div className="food-grid">{visibleRecipes.map((recipe) => <RecipeCard key={recipe.RCP_SEQ} recipe={foodCard(recipe)} formatNumber={showNumber} isFavorite={isFavorite('food', recipe.RCP_SEQ)} onToggleFavorite={() => toggleFavorite('food', foodCard(recipe))} onOpen={() => { setSelectedRecipe(recipe); setPage('detail'); }} />)}</div>
+                <div className="food-grid">{visibleRecipes.map((recipe) => <RecipeCard key={recipe.RCP_SEQ} recipe={foodCard(recipe)} formatNumber={showNumber} favoriteCount={getRecommendationCount('food', recipe.RCP_SEQ)} isFavorite={isFavorite('food', recipe.RCP_SEQ)} onToggleFavorite={() => toggleFavorite('food', foodCard(recipe))} onOpen={() => { setSelectedRecipe(recipe); setPage('detail'); }} />)}</div>
                 {sortedRecipes.length === 0 && <p className="food-empty">조건에 맞는 레시피가 없어요. 검색어나 필터를 바꿔보세요.</p>}
                 {sortedRecipes.length > 0 && <Pagination page={resultPage} total={totalPages} onChange={setResultPage} />}
                 <p className="food-source">식품의약품안전처 조리식품의 레시피 DB · 불러온 레시피 {recipes.length}개 · 영양정보는 원자료 기준입니다.</p>
@@ -549,7 +551,7 @@ const resetSeasonalFilters = () => {
                 {seasonalRecipesLoading && <p className="food-status" role="status">제철 레시피를 불러오고 있어요.</p>}
                 {!seasonalRangeValid && <p className="food-error" role="alert">최소·최대 칼로리를 올바르게 입력해 주세요.</p>}
                 {!seasonalRecipesLoading && seasonalRangeValid && <>
-                  <div className="food-grid">{visibleSeasonalRecipes.map((recipe) => <RecipeCard key={recipe.cntntsNo} recipe={seasonalCard(recipe)} formatNumber={showNumber} seasonal savedMonth={seasonalMonth} isFavorite={isFavorite('seasonal', recipe.cntntsNo)} onToggleFavorite={() => toggleFavorite('seasonal', seasonalCard(recipe), { month: seasonalMonth })} onOpen={() => { setSelectedSeasonalRecipe(recipe); setPage('seasonal-detail'); }} />)}</div>
+                  <div className="food-grid">{visibleSeasonalRecipes.map((recipe) => <RecipeCard key={recipe.cntntsNo} recipe={seasonalCard(recipe)} formatNumber={showNumber} seasonal savedMonth={seasonalMonth} favoriteCount={getRecommendationCount('seasonal', recipe.cntntsNo)} isFavorite={isFavorite('seasonal', recipe.cntntsNo)} onToggleFavorite={() => toggleFavorite('seasonal', seasonalCard(recipe), { month: seasonalMonth })} onOpen={() => { setSelectedSeasonalRecipe(recipe); setPage('seasonal-detail'); }} />)}</div>
                   {sortedSeasonalRecipes.length > 0 ? <Pagination page={seasonalResultPage} total={seasonalTotalPages} onChange={setSeasonalResultPage} /> : <p className="food-empty">일치하는 레시피가 없습니다.</p>}
                 </>}
               </section>
@@ -558,16 +560,16 @@ const resetSeasonalFilters = () => {
           </div>}
 
           {page === 'detail' && selectedRecipe && <RecipeDetails
-            recipe={foodCard(selectedRecipe)} fat={selectedRecipe.INFO_FAT}
+            recipe={foodCard(selectedRecipe)} fat={selectedRecipe.INFO_FAT} favoriteCount={getRecommendationCount('food', selectedRecipe.RCP_SEQ)}
             steps={Array.from({ length: 20 }, (_, index) => { const number = String(index + 1).padStart(2, '0'); return { text: selectedRecipe['MANUAL' + number], image: selectedRecipe['MANUAL_IMG' + number] }; }).filter((step) => step.text?.trim())}
             onBack={() => setPage('custom')} isFavorite={isFavorite('food', selectedRecipe.RCP_SEQ)} onToggleFavorite={() => toggleFavorite('food', foodCard(selectedRecipe))}
           />}
           {page === 'seasonal-detail' && selectedSeasonalRecipe && <RecipeDetails
-            recipe={seasonalCard(selectedSeasonalRecipe)} fat={selectedSeasonalRecipe.fat} seasonal ingredientImage={seasonalImages.ingredient}
+            recipe={seasonalCard(selectedSeasonalRecipe)} fat={selectedSeasonalRecipe.fat} favoriteCount={getRecommendationCount('seasonal', selectedSeasonalRecipe.cntntsNo)} seasonal ingredientImage={seasonalImages.ingredient}
             steps={cookingSteps.map((text, index) => ({ text, image: seasonalImages.steps[index]?.url }))}
             onBack={() => setPage('seasonal')} isFavorite={isFavorite('seasonal', selectedSeasonalRecipe.cntntsNo)} onToggleFavorite={() => toggleFavorite('seasonal', seasonalCard(selectedSeasonalRecipe), { month: seasonalMonth })}
           />}
-          {page === 'favorites' && <Favorites favorites={favorites} onToggleFavorite={toggleFavorite} onBrowse={() => navigate('custom')} />}
+          {page === 'favorites' && <Favorites favorites={favorites} getRecommendationCount={getRecommendationCount} onToggleFavorite={toggleFavorite} onBrowse={() => navigate('custom')} />}
         </main>
         <div className="food-bottom-waves" aria-hidden="true"><span /><span /></div>
       </div>

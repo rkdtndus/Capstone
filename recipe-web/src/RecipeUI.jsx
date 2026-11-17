@@ -65,9 +65,9 @@ export function RecipeCard({
                 <Icon name="heart" size={21} />
               </button>
               {hasFavoriteCount && (
-                <span className="food-favorite-count" title={"찜 " + favoriteCount.toLocaleString("ko-KR") + "회"}>
+                <span className="food-favorite-count" title={"추천수 " + favoriteCount.toLocaleString("ko-KR") + "개"}>
                   <span aria-hidden="true">{favoriteCountFormatter.format(favoriteCount)}</span>
-                  <span className="sr-only">찜 {favoriteCount.toLocaleString("ko-KR")}회</span>
+                  <span className="sr-only">추천수 {favoriteCount.toLocaleString("ko-KR")}개</span>
                 </span>
               )}
             </div>
