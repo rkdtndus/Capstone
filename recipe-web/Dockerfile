@@ -1,0 +1,19 @@
+FROM node:24-bookworm-slim AS build
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
+
+FROM node:24-bookworm-slim
+
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+COPY server.js likes.js foodApiLimit.js ./
+COPY --from=build /app/dist ./dist
+
+EXPOSE 3001
+
+CMD ["node", "server.js"]

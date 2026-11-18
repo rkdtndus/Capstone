@@ -4,6 +4,7 @@ import cors from 'cors';
 import 'dotenv/config';
 import { consumeFoodApiCall } from './foodApiLimit.js';
 import { createLikesRouter } from './likes.js';
+import { fileURLToPath } from 'node:url';
 
 const app = express();
 
@@ -505,7 +506,10 @@ app.get('/api/seasonal/recipes/:id', async (req, res) => {
   }
 });
 
-
+if (process.env.SERVE_WEB === '1') {
+  const webDirectory = fileURLToPath(new URL('./dist/', import.meta.url));
+  app.use(express.static(webDirectory));
+}
 
 app.listen(3001, () => {
   console.log('백엔드 서버 실행: http://localhost:3001');

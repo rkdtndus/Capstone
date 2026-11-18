@@ -65,3 +65,18 @@ npm run dev
 
 npm test로 찜 저장, 여러 브라우저의 공통 추천수, 서버 재시작 후 유지,
 실제 Vite API 프록시 연결을 검증합니다.
+
+
+## Docker로 실행하기
+
+1. Docker Desktop을 실행합니다.
+2. `recipe-web/.env`를 만들고 `FOOD_API_KEY`와 `NONGSARO_API_KEY`를 설정합니다.
+3. `recipe-web` 폴더에서 아래 명령을 실행합니다.
+
+   ```powershell
+   docker compose up --build
+   ```
+
+4. 브라우저에서 `http://localhost:3001`에 접속합니다.
+
+공통 추천수는 Docker 볼륨에 저장되어 컨테이너를 다시 만들어도 유지됩니다.
